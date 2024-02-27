@@ -5,12 +5,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
@@ -19,6 +27,9 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -36,6 +47,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import me.gingerninja.lazylist.hijacker.rememberLazyGridStateHijacker
 import me.gingerninja.lazylist.hijacker.rememberLazyListStateHijacker
 import me.gingerninja.lazylist.sample.ui.theme.AppTheme
 
@@ -46,6 +58,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             var hijackEnabled by remember { mutableStateOf(true) }
+            var gridEnabled  by remember { mutableStateOf(false) }
 
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
@@ -59,7 +72,7 @@ class MainActivity : ComponentActivity() {
                         topBar = {
                             CenterAlignedTopAppBar(
                                 title = {
-                                    Text(text = "LazyColumn hijack")
+                                    Text(text = if (gridEnabled) "LazyGrid hijack" else "LazyColumn hijack")
                                 },
                                 actions = {
                                     Switch(
@@ -87,14 +100,47 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     ) { padding ->
-                        TodoList(
+                        Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(padding),
-                            hijackEnabled = hijackEnabled
-                        )
+                        ) {
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                SegmentedButton(
+                                    selected = !gridEnabled,
+                                    onClick = { gridEnabled = false },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                ) {
+                                    Text(text = "Column")
+                                }
+                                SegmentedButton(
+                                    selected = gridEnabled,
+                                    onClick = { gridEnabled = true },
+                                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                ) {
+                                    Text(text = "Grid")
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            if (gridEnabled) {
+                                TodoGrid(
+                                    modifier = Modifier
+                                        .weight(1.0f)
+                                        .fillMaxSize(),
+                                    hijackEnabled = hijackEnabled
+                                )
+                            } else {
+                                TodoList(
+                                    modifier = Modifier
+                                        .weight(1.0f)
+                                        .fillMaxSize(),
+                                    hijackEnabled = hijackEnabled
+                                )
+                            }
+                        }
                     }
-
                 }
             }
         }
@@ -145,6 +191,63 @@ private fun TodoList(
             TodoItem(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .animateItemPlacement(),
+                name = it.name,
+                checked = it.checked,
+                onCheckedChange = { checked ->
+                    toggleItem(it.id, checked)
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TodoGrid(
+    modifier: Modifier = Modifier,
+    hijackEnabled: Boolean,
+) {
+    var list by remember {
+        mutableStateOf(
+            List(50) {
+                TodoItem(
+                    id = it,
+                    name = "Item #$it"
+                )
+            }
+        )
+    }
+
+    fun toggleItem(id: Int, checked: Boolean) {
+        list = list.toMutableList().apply {
+            val index = indexOfFirst { it.id == id }
+
+            val item = removeAt(index).copy(checked = checked)
+
+            if (checked) {
+                add(item)
+            } else {
+                add(0, item)
+            }
+        }
+    }
+
+    val gridState = rememberLazyGridState()
+    rememberLazyGridStateHijacker(gridState = gridState, enabled = hijackEnabled)
+
+    LazyVerticalGrid(
+        modifier = modifier,
+        state = gridState,
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        columns = GridCells.Adaptive(120.dp)
+    ) {
+        items(items = list, key = { item -> item.id }) {
+            TodoItem(
+                modifier = Modifier
+                    .width(120.dp)
                     .animateItemPlacement(),
                 name = it.name,
                 checked = it.checked,
