@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "me.gingerninja.lazylist"
-version = "1.0.0"
+version = "1.1.0"
 
 android {
     namespace = "me.gingerninja.lazylist.hijacker"
