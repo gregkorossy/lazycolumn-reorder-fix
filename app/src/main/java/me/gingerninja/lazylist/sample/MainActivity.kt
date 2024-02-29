@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             var hijackEnabled by remember { mutableStateOf(true) }
-            var gridEnabled  by remember { mutableStateOf(false) }
+            var gridEnabled by remember { mutableStateOf(false) }
 
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
